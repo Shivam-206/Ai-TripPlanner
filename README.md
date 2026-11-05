@@ -1,3 +1,20 @@
+# AI Trip Planner
+
+An AI-powered travel planner that generates personalized
+trip itineraries based on your destination, budget, and preferences.
+
+## Live Demo
+
+🚀 [Visit AI Trip Planner](https://ai-trip-planner-rho-vert.vercel.app/)
+
+## Tech Stack
+- React.js
+- Tailwind CSS
+- Firebase Authentication
+- Google Gemini API
+- Google Places API
+
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
