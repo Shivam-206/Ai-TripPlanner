@@ -1,41 +1,36 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { GetPlaceDetails, PHOTO_REF_URL } from "@/service/GlobalApi";
+import { GetPlacePhoto } from "@/service/GlobalApi";
 
 function UserTripCarditem({ trip }) {
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [photo, setPhoto] = useState({ query: "", url: "" });
+  const destination = trip?.userSelection?.destination || "";
 
   useEffect(() => {
-    const getPlacePhoto = async () => {
-      if (!import.meta.env.VITE_GOOGLE_PLACE_API_KEY) return;
+    let active = true;
 
-      const destination = trip?.userSelection?.destination;
-      if (!destination) return;
-
-      try {
-        const response = await GetPlaceDetails({
-          textQuery: destination,
-        });
-
-        const photoName = response.data?.places?.[0]?.photos?.[0]?.name;
-
-        if (photoName) {
-          const url = PHOTO_REF_URL.replace("{NAME}", photoName);
-          setPhotoUrl(url);
-        }
-      } catch (error) {
+    GetPlacePhoto(destination)
+      .then((url) => {
+        if (active && url) setPhoto({ query: destination, url });
+      })
+      .catch((error) => {
         console.error("Error fetching destination photo:", error);
-      }
-    };
+      });
 
-    getPlacePhoto();
-  }, [trip]);
+    return () => {
+      active = false;
+    };
+  }, [destination]);
 
   return (
     <Link to={`/view-trip/${trip?.id}`}>
       <div className="hover:scale-105 transition-all">
         <img
-          src={photoUrl || "/Placeholder2.jpg"}
+          src={(photo.query === destination && photo.url) || "/Placeholder2.jpg"}
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = "/Placeholder2.jpg";
+          }}
           alt={trip?.userSelection?.destination || "Trip"}
           className="object-cover rounded-xl h-62.5 w-full"
         />

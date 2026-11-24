@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "../ui/button";
 import {
   Popover,
@@ -13,41 +14,57 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FcGoogle } from "react-icons/fc";
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { Link, useNavigate } from "react-router-dom";
 import { auth } from "@/service/firebaseConfig";
+import { verifySession } from "@/service/api";
 
 function Header() {
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user")) || null;
-    } catch {
-      return null;
-    }
-  });
-
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        setUser(null);
+      } else {
+        setUser({
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName,
+          email: firebaseUser.email,
+          picture: firebaseUser.photoURL,
+        });
+      }
+
+      setAuthReady(true);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleLogin = async () => {
     try {
       setLoading(true);
 
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const firebaseUser = result.user;
-
-      const userData = {
-        uid: firebaseUser.uid,
-        name: firebaseUser.displayName,
-        email: firebaseUser.email,
-        picture: firebaseUser.photoURL,
-      };
-
-      localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData);
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(auth, provider);
       setOpenDialog(false);
+      await verifySession();
     } catch (error) {
       console.error("Google login failed:", error);
+      if (auth.currentUser) {
+        toast.error("Signed in, but the server could not verify your session.", {
+          description: error.message,
+        });
+      } else if (error.code !== "auth/popup-closed-by-user") {
+        toast.error("Google login failed", {
+          description: error.message,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -56,10 +73,12 @@ function Header() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      localStorage.removeItem("user");
-      setUser(null);
+      navigate("/", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
+      toast.error("Logout failed", {
+        description: error.message,
+      });
     }
   };
 
@@ -69,19 +88,19 @@ function Header() {
         <img src="/logo.svg" alt="logo" />
 
         <div>
-          {user ? (
-            <div className="flex items-center gap-3">
-              <a href="/create">
+          {authReady && user ? (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <Link to="/create-trip">
                 <Button variant="outline" className="rounded-full">
                   + Create Trip
                 </Button>
-              </a>
+              </Link>
 
-              <a href="/my-trips">
+              <Link to="/my-trips">
                 <Button variant="outline" className="rounded-full">
                   My Trips
                 </Button>
-              </a>
+              </Link>
 
               <Popover>
                 <PopoverTrigger>
@@ -101,9 +120,9 @@ function Header() {
                 </PopoverContent>
               </Popover>
             </div>
-          ) : (
+          ) : authReady ? (
             <Button onClick={() => setOpenDialog(true)}>Sign In</Button>
-          )}
+          ) : null}
         </div>
       </div>
 

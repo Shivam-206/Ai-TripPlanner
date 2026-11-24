@@ -1,48 +1,46 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/service/firebaseConfig";
 import { auth } from "@/service/firebaseConfig";
+import { apiRequest } from "@/service/api";
 import UserTripCarditem from "./components/UserTripCarditem";
 
 function Mytrips() {
   const navigation = useNavigate();
   const [userTrips, setUserTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    GetUsertrips();
-  }, []);
+    const getUserTrips = async () => {
+      try {
+        await auth.authStateReady();
+        const user = auth.currentUser;
 
-  const GetUsertrips = async () => {
-    try {
-      await auth.authStateReady();
-      const user = auth.currentUser;
+        if (!user) {
+          navigation("/", { replace: true });
+          return;
+        }
 
-      if (!user) {
-        navigation("/");
-        return;
+        const trips = await apiRequest("/api/trips");
+        if (!Array.isArray(trips) || trips.some((trip) => !trip?.id)) {
+          throw new Error("The server returned an invalid trip list.");
+        }
+
+        setUserTrips(trips);
+      } catch (error) {
+        console.error("Error fetching user trips:", error);
+        setError(
+          error.status === 401
+            ? "Your session could not be verified. Please sign out and sign in again."
+            : "Unable to load your trips. Please try again.",
+        );
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const q = query(
-        collection(db, "AITrips"),
-        where("userId", "==", user.uid)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      const trips = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setUserTrips(trips);
-    } catch (error) {
-      console.error("Error fetching user trips:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    getUserTrips();
+  }, [navigation]);
 
   return (
     <div className="sm:mx-10 md:px-32 lg:px-56 px-5 mt-10">
@@ -56,6 +54,8 @@ function Mytrips() {
               className="h-62.5 w-full bg-slate-200 animate-pulse rounded-xl"
             />
           ))
+        ) : error ? (
+          <p className="text-gray-500 col-span-full">{error}</p>
         ) : userTrips.length > 0 ? (
           userTrips.map((trip) => (
             <UserTripCarditem key={trip.id} trip={trip} />

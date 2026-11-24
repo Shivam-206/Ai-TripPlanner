@@ -1,12 +1,9 @@
-import { db } from "@/service/firebaseConfig";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import React, { useState } from "react";
+import { useRef, useState } from "react";
 import {
   SelectBudgetOptions,
   SelectTravelesList,
 } from "../constants/options.jsx";
 import { toast } from "sonner";
-import { generateAIResponse, AI_PROMPT } from "@/service/AIModel.jsx";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 import {
@@ -21,6 +18,7 @@ import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/service/firebaseConfig";
+import { apiRequest, verifySession } from "@/service/api";
 
 function CreateTrip() {
   const [destination, setDestination] = useState("");
@@ -30,10 +28,9 @@ function CreateTrip() {
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const submissionInProgress = useRef(false);
 
-  // Generate trip using Gemini
-
-    const generateTrip = async (signedInUser) => {
+  const generateTrip = async (signedInUser) => {
     // Wait until Firebase has finished restoring the saved session
     await auth.authStateReady();
     const firebaseUser = signedInUser || auth.currentUser;
@@ -44,45 +41,58 @@ function CreateTrip() {
       return;
     }
 
+    if (submissionInProgress.current) {
+      return;
+    }
+
+    submissionInProgress.current = true;
+
     try {
       setLoading(true);
 
       toast.info("Generating your trip...");
 
-      const FINAL_PROMPT = AI_PROMPT.replace("{location}", destination.trim())
-        .replace("{days}", days)
-        .replace("{budget}", budget)
-        .replace("{travelers}", travelers);
+      let trip;
+      try {
+        trip = await apiRequest("/api/trips", {
+          method: "POST",
+          body: JSON.stringify({
+            destination: destination.trim(),
+            days: Number(days),
+            budget,
+            travelers,
+          }),
+        });
+      } catch (error) {
+        console.error("Trip generation error:", error);
 
-      const result = await generateAIResponse(FINAL_PROMPT);
+        toast.error("Failed to generate or save trip", {
+          description: error.message || "Please try again later.",
+        });
+        return;
+      }
 
-      console.log("Generated Trip JSON:", result);
-
-      const docRef = await addDoc(collection(db, "AITrips"), {
-        userId: firebaseUser.uid,
-        userEmail: firebaseUser.email,
-        userSelection: {
-          destination: destination.trim(),
-          days: Number(days),
-          budget,
-          travelers,
-        },
-        tripData: result,
-        createdAt: serverTimestamp(),
-      });
-
-      console.log("Trip saved with ID:", docRef.id);
+      const tripId = trip?.id || trip?._id;
+      if (!tripId) {
+        console.error("Trip saved, but the response did not include its ID:", trip);
+        toast.error("Trip saved, but it could not be opened.", {
+          description: "The server did not return the saved trip ID.",
+        });
+        return;
+      }
 
       toast.success("Trip generated and saved successfully!");
 
-      navigate("/view-trip/" + docRef.id);
-    } catch (error) {
-      console.error("Trip generation error:", error);
-
-      toast.error("Failed to generate or save trip", {
-        description: error.message || "Please try again later.",
-      });
+      try {
+        await navigate(`/view-trip/${encodeURIComponent(tripId)}`);
+      } catch (error) {
+        console.error("Trip saved, but navigation failed:", error);
+        toast.error("Trip saved, but trip details could not be opened.", {
+          description: error.message || "Open it from My Trips.",
+        });
+      }
     } finally {
+      submissionInProgress.current = false;
       setLoading(false);
     }
   };
@@ -92,21 +102,14 @@ function CreateTrip() {
     let user;
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
         // Firebase opens the Google sign-in popup, authenticates the user and returns a Firebase user object.
       const result = await signInWithPopup(auth, provider);
       user = result.user;
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          email: user.email,
-          name: user.displayName,
-          picture: user.photoURL,
-        }),
-      );
+      setOpenDialog(false);
+      await verifySession();
 
       toast.success("Google login successful!");
-      setOpenDialog(false);
     } catch (error) {
       console.error("Google login error:", error.code, error.message);
       const messages = {
@@ -197,6 +200,7 @@ function CreateTrip() {
           <input
             type="text"
             list="destinations"
+            maxLength={200}
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             placeholder="Select or enter a destination"

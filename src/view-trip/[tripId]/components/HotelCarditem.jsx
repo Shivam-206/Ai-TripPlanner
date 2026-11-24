@@ -1,70 +1,70 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { GetPlaceDetails, PHOTO_REF_URL } from "@/service/GlobalApi";
+import { useEffect, useState } from "react";
+import { GetPlacePhoto } from "@/service/GlobalApi";
 
 function HotelCarditem({ hotel }) {
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [photo, setPhoto] = useState({ query: "", url: "" });
+  const name =
+    typeof hotel?.hotelName === "string" ? hotel.hotelName.trim() : "";
+  const address =
+    typeof hotel?.hotelAddress === "string" ? hotel.hotelAddress.trim() : "";
+  const query = [name, address].filter(Boolean).join(", ");
 
   useEffect(() => {
-    const getPlacePhoto = async () => {
-      // Don't call Google API until the key is configured
-      if (!import.meta.env.VITE_GOOGLE_PLACE_API_KEY) return;
+    let active = true;
 
-      if (!hotel?.hotelName) return;
-
-      try {
-        const data = {
-          textQuery: hotel.hotelName,
-        };
-
-        const response = await GetPlaceDetails(data);
-
-        const photoName = response.data?.places?.[0]?.photos?.[0]?.name;
-
-        if (photoName) {
-          const url = PHOTO_REF_URL.replace("{NAME}", photoName);
-          setPhotoUrl(url);
-        }
-      } catch (error) {
+    GetPlacePhoto(query)
+      .then((url) => {
+        if (active && url) setPhoto({ query, url });
+      })
+      .catch((error) => {
         console.error("Error fetching hotel photo:", error);
-      }
+      });
+
+    return () => {
+      active = false;
     };
+  }, [query]);
 
-    getPlacePhoto();
-  }, [hotel]);
-
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    `${hotel?.hotelName || ""}, ${hotel?.hotelAddress || ""}`,
-  )}`;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
   return (
-    <div>
-      <Link
-        to={mapUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <div className="hover:scale-105 transition-all cursor-pointer">
-          <img
-            src={photoUrl || "/Placeholder2.jpg"}
-            className="rounded-xl w-full h-48 object-cover"
-            alt={hotel?.hotelName || "Hotel"}
-          />
+    <a
+      href={query ? mapUrl : undefined}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block min-w-0"
+      aria-label={name ? `View ${name} on Google Maps` : "View hotel on Google Maps"}
+    >
+      <div className="h-full min-w-0 cursor-pointer transition-all hover:scale-105">
+        <img
+          src={(photo.query === query && photo.url) || "/Placeholder2.jpg"}
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = "/Placeholder2.jpg";
+          }}
+          className="h-48 w-full rounded-xl object-cover"
+          alt={name || "Hotel"}
+        />
 
-          <div className="my-2 flex flex-col gap-2">
-            <h2 className="font-medium">{hotel?.hotelName}</h2>
+        <div className="my-2 flex min-w-0 flex-col gap-2">
+          <h2 className="break-words font-medium">
+            {name || "Hotel recommendation"}
+          </h2>
 
-            <h2 className="text-xs text-gray-500">
-              📍 {hotel?.hotelAddress}
-            </h2>
+          <p className="break-words text-xs text-gray-500">
+            📍 {address || "Address unavailable"}
+          </p>
 
-            <h2 className="text-sm">🏷️ {hotel?.price}</h2>
+          <p className="break-words text-sm">
+            🏷️ {hotel?.price || "Price unavailable"}
+          </p>
 
-            <h2 className="text-sm">⭐ {hotel?.rating}</h2>
-          </div>
+          <p className="break-words text-sm">
+            ⭐ {hotel?.rating || "Rating unavailable"}
+          </p>
         </div>
-      </Link>
-    </div>
+      </div>
+    </a>
   );
 }
 

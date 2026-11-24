@@ -1,8 +1,9 @@
-import React from "react";
 import PlaceCardItem from "./PlaceCardItem";
 
 function PlacesToVisit({ trip }) {
-  const itinerary = trip?.tripData?.itinerary || [];
+  const itinerary = Array.isArray(trip?.tripData?.itinerary)
+    ? trip.tripData.itinerary
+    : [];
 
   return (
     <div className="mt-8">
@@ -11,27 +12,39 @@ function PlacesToVisit({ trip }) {
       </h2>
 
       <div className="space-y-8">
-        {itinerary.map((item, index) => (
-          <div key={index}>
-            {/* Day heading */}
-            <h2 className="font-bold text-lg mb-4 border-l-4 border-orange-500 pl-3">
-              Day {item.day}
-            </h2>
+        {itinerary.map((item, index) => {
+          const places = Array.isArray(item?.places) ? item.places : [];
+          const day = item?.day ?? index + 1;
 
-            {/* Places grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {item.places?.map((place, placeIndex) => (
-                <div key={placeIndex}>
-                  <h2 className="font-medium text-sm text-orange-600 mb-2">
-                    {place.time}
-                  </h2>
+          return (
+            <div key={`${day}-${index}`}>
+              <h2 className="mb-4 border-l-4 border-orange-500 pl-3 text-lg font-bold">
+                Day {day}
+              </h2>
 
-                  <PlaceCardItem place={place} />
+              {places.length > 0 ? (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {places.map((place, placeIndex) => (
+                    <div key={placeIndex} className="min-w-0">
+                      {place?.time && (
+                        <h2 className="mb-2 break-words text-sm font-medium text-orange-600">
+                          {place.time}
+                        </h2>
+                      )}
+
+                      <PlaceCardItem
+                        place={place}
+                        destination={trip?.userSelection?.destination}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-gray-500">No places listed for this day.</p>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {itinerary.length === 0 && (

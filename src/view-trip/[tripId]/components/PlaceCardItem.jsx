@@ -1,8 +1,7 @@
-import React from "react";
-
-function PlaceCardItem({ place }) {
+function PlaceCardItem({ place, destination }) {
+  const mapQuery = [place?.placeName, destination].filter(Boolean).join(", ");
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    place?.placeName || ""
+    mapQuery
   )}`;
 
   return (
@@ -10,28 +9,40 @@ function PlaceCardItem({ place }) {
       href={mapUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="block h-full"
+      className="block h-full min-w-0"
     >
-      <div className="border rounded-xl p-3 mt-2 hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer h-full flex flex-col">
+      <div className="mt-2 flex h-full min-w-0 cursor-pointer flex-col rounded-xl border p-3 transition-all hover:-translate-y-1 hover:shadow-md">
 
         <img
-          src={place?.placeImageUrl || "/placeholder.jpg"}
+          src={place?.placeImageUrl || "/Placeholder2.jpg"}
           alt={place?.placeName || "Travel destination"}
           className="w-full h-44 rounded-lg object-cover"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = "/Placeholder2.jpg";
+          }}
         />
 
-        <div className="mt-3 flex flex-col flex-1">
-          <h2 className="font-bold text-lg">
-            {place?.placeName}
+        <div className="mt-3 flex min-w-0 flex-1 flex-col">
+          <h2 className="break-words font-bold text-lg">
+            {place?.placeName || "Recommended place"}
           </h2>
 
-          <p className="text-sm text-gray-500 mt-2">
-            {place?.placeDetails}
+          <p className="mt-2 break-words text-sm text-gray-500">
+            {place?.placeDetails || "Details unavailable."}
           </p>
 
-          <p className="mt-3 text-sm font-medium">
-            🕢 {place?.timeToTravel}
-          </p>
+          {place?.timeToTravel && (
+            <p className="mt-3 break-words text-sm font-medium">
+              🕢 {place.timeToTravel}
+            </p>
+          )}
+
+          {place?.ticketPricing && (
+            <p className="mt-2 break-words text-sm">
+              🎟️ {place.ticketPricing}
+            </p>
+          )}
         </div>
 
       </div>

@@ -1,8 +1,9 @@
-import React from "react";
 import HotelCarditem from "./HotelCarditem";
 
 function Hotels({ trip }) {
-  const hotels = trip?.tripData?.hotels || [];
+  const hotels = Array.isArray(trip?.tripData?.hotels)
+    ? trip.tripData.hotels
+    : [];
 
   return (
     <div>
