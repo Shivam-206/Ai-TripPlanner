@@ -327,7 +327,7 @@ function CreateTrip() {
           </DialogHeader>
 
           <div className="flex justify-center my-4">
-            <img src="/logo.svg" alt="App logo" className="h-12 w-auto" />
+            <img src="/logo.png" alt="App logo" className="h-12 w-auto" />
           </div>
 
           <button

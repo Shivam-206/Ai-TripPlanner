@@ -85,7 +85,9 @@ function Header() {
   return (
     <>
       <div className="p-3 shadow-sm flex justify-between items-center px-5">
-        <img src="/logo.svg" alt="logo" />
+        <Link to="/" aria-label="Go to homepage" className="inline-flex">
+          <img src="/logo.png" alt="AI Trip Planner" />
+        </Link>
 
         <div>
           {authReady && user ? (
@@ -139,7 +141,7 @@ function Header() {
           </DialogHeader>
 
           <div className="flex justify-center my-4">
-            <img src="/logo.svg" alt="App logo" className="h-12 w-auto" />
+            <img src="/logo.png" alt="App logo" className="h-12 w-auto" />
           </div>
 
           <button
